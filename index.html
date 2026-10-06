@@ -6326,7 +6326,11 @@ Thank you.
           auth: {
             persistSession: true,
             autoRefreshToken: true,
-            detectSessionInUrl: true
+            detectSessionInUrl: false,
+            flowType: 'implicit'
+          },
+          global: {
+            fetch: window.fetch.bind(window)
           }
         });
         return bpSupabase;
@@ -6381,13 +6385,20 @@ Thank you.
       }
 
       try {
-        const { error } = await client.auth.getSession();
-        if (error) throw error;
-        bpSetMessage('bp-config-message', 'Connection saved successfully. এখন Login করুন।', 'success');
-        setTimeout(bpShowLogin, 500);
+        const response = await window.fetch(url.replace(/\/$/, '') + '/auth/v1/settings', {
+          method: 'GET',
+          headers: { 'apikey': key },
+          cache: 'no-store'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.message || payload.error || `HTTP ${response.status}`);
+        }
+        bpSetMessage('bp-config-message', 'Supabase connection verified successfully. এখন Login করুন।', 'success');
+        setTimeout(bpShowLogin, 700);
       } catch (e) {
-        console.error(e);
-        bpSetMessage('bp-config-message', 'Supabase connection test failed: ' + (e.message || 'Unknown error'), 'error');
+        console.error('Supabase connection test failed:', e);
+        bpSetMessage('bp-config-message', 'Connection test failed: ' + (e.message || 'Network error'), 'error');
       }
     }
 
@@ -6409,10 +6420,65 @@ Thank you.
       }
       bpSetMessage('bp-auth-message', '', 'info');
 
-      const { data, error } = await bpSupabase.auth.signInWithPassword({ email, password });
+      let data = null;
+      let error = null;
+
+      try {
+        const result = await bpSupabase.auth.signInWithPassword({ email, password });
+        data = result.data;
+        error = result.error;
+      } catch (sdkErr) {
+        console.error('Supabase SDK login error:', sdkErr);
+        error = sdkErr;
+      }
+
+      // Network-level fallback: call the same Supabase Auth password endpoint
+      // directly. This makes browser/network failures visible instead of only
+      // showing the generic "Failed to fetch" message.
+      if (error && (error.message === 'Failed to fetch' || error.name === 'TypeError')) {
+        try {
+          const cfg = bpReadSupabaseConfig();
+          const response = await window.fetch(cfg.url.replace(/\/$/, '') + '/auth/v1/token?grant_type=password', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': cfg.key
+            },
+            body: JSON.stringify({ email, password }),
+            cache: 'no-store'
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            error = new Error(payload.error_description || payload.msg || payload.message || payload.error || `Supabase Auth HTTP ${response.status}`);
+          } else if (payload?.access_token) {
+            // Let the official SDK own the persistent session when possible.
+            const retry = await bpSupabase.auth.setSession({
+              access_token: payload.access_token,
+              refresh_token: payload.refresh_token
+            });
+            if (retry.error) {
+              error = retry.error;
+            } else {
+              data = retry.data;
+              error = null;
+            }
+          } else {
+            error = new Error('Supabase Auth returned no access token.');
+          }
+        } catch (directErr) {
+          console.error('Direct Supabase Auth request failed:', directErr);
+          const msg = directErr?.message || String(directErr);
+          error = new Error(`Network connection to Supabase failed. ${msg}`);
+        }
+      }
 
       if (error) {
-        bpSetMessage('bp-auth-message', error.message || 'Login failed.', 'error');
+        console.error('Supabase login failed:', error);
+        const raw = error.message || 'Login failed.';
+        const friendly = raw === 'Failed to fetch'
+          ? 'Supabase server/network request failed. Click Supabase Connection Settings and test again.'
+          : raw;
+        bpSetMessage('bp-auth-message', friendly, 'error');
         if (btn) {
           btn.disabled = false;
           btn.textContent = 'Login to Studio';
