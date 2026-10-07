@@ -6603,6 +6603,9 @@ Thank you.
       }
     }
 
+    function bpNormCalendarText(v){
+      return String(v||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[–—]/g,'-');
+    }
     async function bpRestoreGoogleCalendarMappings(){
       const status=document.getElementById('bp-calendar-restore-status');
       if(status) status.textContent='Reading Google Calendar mappings from Supabase…';
@@ -6614,9 +6617,66 @@ Thank you.
         const {data,error}=await bpSupabase.from('google_calendar_events').select('source_type,source_id,calendar_id,google_event_id');
         if(error) throw new Error(error.message);
         const rows=Array.isArray(data)?data:[];
-        const maps=new Map(rows.map(x=>[`${x.source_type}:${x.source_id}`,x.google_event_id]));
-        let invoiceApplied=0, freelanceApplied=0, alreadyPresent=0, missingLocal=0;
+        let invoiceApplied=0, freelanceApplied=0, alreadyPresent=0, missingLocal=0, ambiguous=0;
 
+        const jobs=Array.isArray(appState.freelanceJobs)?appState.freelanceJobs:[];
+        const usedLocal=new Set();
+        const remoteBySource=new Map(rows.map(x=>[`${x.source_type}:${x.source_id}`,x]));
+
+        // First pass: exact source-id match when the local record still has the same id.
+        for(const job of jobs){
+          const x=remoteBySource.get(`freelance_job:${job.id}`);
+          if(!x || !x.google_event_id) continue;
+          if(job.googleCalendarEventId) alreadyPresent++;
+          else { job.googleCalendarEventId=x.google_event_id; freelanceApplied++; }
+          usedLocal.add(String(job.id));
+        }
+
+        // Second pass: safely recover mappings when local IDs differ, using stable job metadata.
+        for(const x of rows){
+          if(x.source_type!=='freelance_job' || !x.google_event_id) continue;
+          if(jobs.some(j=>String(j.id)===String(x.source_id))) continue;
+
+          // The Supabase migration preserved the source id in most cases, but if a local
+          // browser copy has regenerated ids, match by company + work date + location.
+          // Role is included when available. Never guess when more than one local job matches.
+          const remoteKey=String(x.source_id||'');
+          let candidateJobs=[];
+          const sourceParts=remoteKey.split('|');
+          // We do not depend on source id formatting; use a small set of fields that are
+          // present in both the local job and the imported Supabase record.
+          // The remote table itself does not carry those fields, so use the embedded
+          // recovery snapshot as a trusted metadata fallback when available.
+          const snapJobs=Array.isArray(VERIFIED_RECOVERY_SNAPSHOT?.freelanceJobs)?VERIFIED_RECOVERY_SNAPSHOT.freelanceJobs:[];
+          const snap=snapJobs.find(j=>String(j.id)===remoteKey);
+          if(snap){
+            candidateJobs=jobs.filter(j=>
+              String(j.workDate||'')===String(snap.workDate||'') &&
+              bpNormCalendarText(j.companyName)===bpNormCalendarText(snap.companyName) &&
+              bpNormCalendarText(j.role||'')===bpNormCalendarText(snap.role||'') &&
+              (!snap.location || !j.location || bpNormCalendarText(j.location)===bpNormCalendarText(snap.location))
+            );
+          }
+          if(candidateJobs.length===0 && snap){
+            candidateJobs=jobs.filter(j=>
+              String(j.workDate||'')===String(snap.workDate||'') &&
+              bpNormCalendarText(j.companyName)===bpNormCalendarText(snap.companyName)
+            );
+          }
+          if(candidateJobs.length===1){
+            const job=candidateJobs[0];
+            if(job.googleCalendarEventId) alreadyPresent++;
+            else { job.googleCalendarEventId=x.google_event_id; freelanceApplied++; }
+            usedLocal.add(String(job.id));
+          } else if(candidateJobs.length>1){
+            ambiguous++;
+          } else {
+            missingLocal++;
+          }
+        }
+
+        // Invoice-day mappings: exact source-id restore remains safest.
+        const maps=new Map(rows.map(x=>[`${x.source_type}:${x.source_id}`,x.google_event_id]));
         for(const inv of (appState.invoices||[])){
           for(let i=0;i<(inv.days||[]).length;i++){
             const d=inv.days[i];
@@ -6628,28 +6688,13 @@ Thank you.
             else { inv.googleCalendarEventIds[i]=eid; invoiceApplied++; }
           }
         }
-        for(const job of (appState.freelanceJobs||[])){
-          const eid=maps.get(`freelance_job:${job.id}`);
-          if(!eid) continue;
-          if(job.googleCalendarEventId) alreadyPresent++;
-          else { job.googleCalendarEventId=eid; freelanceApplied++; }
-        }
-
-        // Count remote mappings that have no corresponding local source record.
-        const localInvoiceIds=new Set();
-        for(const inv of (appState.invoices||[])) for(const d of (inv.days||[])) localInvoiceIds.add(`invoice_day:${d.dayId ?? d.id}`);
-        const localFreelanceIds=new Set((appState.freelanceJobs||[]).map(j=>`freelance_job:${j.id}`));
-        for(const x of rows){
-          const key=`${x.source_type}:${x.source_id}`;
-          if((x.source_type==='invoice_day' && !localInvoiceIds.has(key)) || (x.source_type==='freelance_job' && !localFreelanceIds.has(key))) missingLocal++;
-        }
 
         persistData();
         try{ renderDashboard(); renderInvoicesList(); renderBookingsMaster(); renderFreelance(); renderDataSafety?.(); }catch(e){}
-        const msg=`Restored ${invoiceApplied+freelanceApplied} Calendar links (${invoiceApplied} invoice days, ${freelanceApplied} freelance jobs). Existing links preserved: ${alreadyPresent}. Remote mappings without a local record: ${missingLocal}. No records were deleted or overwritten.`;
+        const msg=`Restored ${invoiceApplied+freelanceApplied} Calendar links (${invoiceApplied} invoice days, ${freelanceApplied} freelance jobs). Existing links preserved: ${alreadyPresent}. Remote mappings without a safe local match: ${missingLocal}. Ambiguous matches skipped: ${ambiguous}. No records were deleted or overwritten.`;
         if(status) status.textContent=msg;
         showToast(`Calendar links restored: ${invoiceApplied+freelanceApplied}`);
-        return {ok:true,remoteCount:rows.length,invoiceApplied,freelanceApplied,alreadyPresent,missingLocal};
+        return {ok:true,remoteCount:rows.length,invoiceApplied,freelanceApplied,alreadyPresent,missingLocal,ambiguous};
       }catch(e){
         console.error('Calendar mapping restore failed:',e);
         if(status) status.textContent='Restore failed: '+(e.message||String(e));
