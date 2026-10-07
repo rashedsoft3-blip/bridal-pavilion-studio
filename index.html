@@ -862,6 +862,18 @@
           </div>
           <div id="gcal-sync-status" class="mt-3 text-[11px] text-stone-500">Not connected yet.</div>
         </div>
+        <div class="bg-white rounded-2xl border p-6">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h3 class="font-semibold">Supabase Database — Read & Compare</h3>
+              <p class="text-xs text-stone-500 mt-1">শুধু Database থেকে data পড়বে এবং Local বনাম Supabase মিলিয়ে দেখাবে। কোনো data overwrite, delete বা merge করবে না।</p>
+            </div>
+            <span id="bp-db-compare-badge" class="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-600 text-[10px] font-bold">Not Checked</span>
+          </div>
+          <button onclick="bpCompareSupabaseData()" class="mt-4 px-4 py-2 rounded-xl bg-burgundy-800 text-white text-xs font-semibold">Check Supabase Database</button>
+          <div id="bp-db-compare-status" class="mt-3 text-[11px] text-stone-500">Database comparison has not been run yet.</div>
+          <div id="bp-db-compare-results" class="mt-4"></div>
+        </div>
         <div class="bg-white rounded-2xl border p-6"><h3 class="font-semibold">Data Summary</h3><div id="data-safety-summary" class="grid grid-cols-2 md:grid-cols-6 gap-3 mt-4"></div><div id="data-health-results" class="mt-5"></div></div>
       </section>
 
@@ -6487,7 +6499,7 @@ Thank you.
       }
 
       bpShowAuthenticatedUI(data?.user);
-      setTimeout(()=>bpSyncFromSupabase({silent:false}), 150);
+      // V27: Database sync is manual and read-only compare first.
       if (btn) {
         btn.disabled = false;
         btn.textContent = 'Login to Studio';
@@ -6537,6 +6549,48 @@ Thank you.
         deliverables:(deliverables||[]).filter(x=>String(x.invoice_id)===String(row.id)).map(x=>x.deliverable).filter(Boolean),
         days:invDays, showCostsOnInvoice:!!row.show_costs_on_invoice, notes:row.notes || '', signedBy:row.signed_by || '', signedTitle:row.signed_title || '', status:row.status || 'Draft', createdAt:row.source_created_at || String(row.created_at||'').slice(0,10)
       };
+    }
+
+    async function bpCompareSupabaseData(){
+      const badge=document.getElementById('bp-db-compare-badge');
+      const status=document.getElementById('bp-db-compare-status');
+      const results=document.getElementById('bp-db-compare-results');
+      if(!bpSupabase){
+        if(badge){badge.textContent='Not Connected';badge.className='px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[10px] font-bold';}
+        if(status)status.textContent='Supabase client is not ready. Please log in again.';
+        return;
+      }
+      if(badge){badge.textContent='Checking…';badge.className='px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-bold';}
+      if(status)status.textContent='Reading Supabase tables. Local data will not be changed.';
+      if(results)results.innerHTML='';
+      try{
+        const tables=['invoices','invoice_days','expenses','team_members','team_payments','delivery_records','freelance_jobs','freelance_company_balances','google_calendar_events'];
+        const remoteResults=await Promise.all(tables.map(t=>bpDbTable(t)));
+        const remote={}; tables.forEach((t,i)=>remote[t]=remoteResults[i]);
+        const local={
+          invoices:Array.isArray(appState.invoices)?appState.invoices:[],
+          invoice_days:(appState.invoices||[]).flatMap(x=>Array.isArray(x.days)?x.days:[]),
+          expenses:Array.isArray(appState.expenses)?appState.expenses:[],
+          team_members:Array.isArray(appState.teamMembers)?appState.teamMembers:[],
+          team_payments:Array.isArray(appState.teamPayments)?appState.teamPayments:[],
+          delivery_records:Object.keys(appState.deliveryRecords||{}).map(id=>({invoice_id:id})),
+          freelance_jobs:Array.isArray(appState.freelanceJobs)?appState.freelanceJobs:[],
+          freelance_company_balances:Object.entries(appState.freelanceCompanyBalances||{}).flatMap(([company,months])=>Object.keys(months||{}).map(month=>({company_key:company,balance_month:month}))),
+          google_calendar_events:[]
+        };
+        const labels={invoices:'Bookings / Invoices',invoice_days:'Invoice Days',expenses:'Expenses',team_members:'Team Members',team_payments:'Team Payments',delivery_records:'Delivery Records',freelance_jobs:'Freelance Jobs',freelance_company_balances:'Company Balances',google_calendar_events:'Google Calendar Links'};
+        const rows=tables.map(t=>({table:t,label:labels[t],local:local[t].length,remote:remote[t].length,delta:remote[t].length-local[t].length}));
+        const mismatches=rows.filter(r=>r.delta!==0);
+        if(badge){badge.textContent=mismatches.length?'Count Difference Found':'Counts Match';badge.className='px-2.5 py-1 rounded-lg '+(mismatches.length?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700')+' text-[10px] font-bold';}
+        if(status)status.textContent=`Checked ${new Date().toLocaleString()} — no local data was changed.`;
+        if(results)results.innerHTML=`<div class="overflow-x-auto border border-warmBorder rounded-xl"><table class="w-full text-xs"><thead><tr class="bg-stone-50 text-[10px] uppercase text-stone-400"><th class="text-left p-3">Data</th><th class="text-right p-3">Local</th><th class="text-right p-3">Supabase</th><th class="text-right p-3">Difference</th></tr></thead><tbody>${rows.map(r=>`<tr class="border-t border-stone-100"><td class="p-3 font-semibold">${escapeHtml(r.label)}</td><td class="p-3 text-right">${r.local}</td><td class="p-3 text-right">${r.remote}</td><td class="p-3 text-right ${r.delta?'text-amber-700 font-bold':'text-emerald-700'}">${r.delta>0?'+':''}${r.delta}</td></tr>`).join('')}</tbody></table></div><div class="mt-3 text-[10px] text-stone-400">This is a read-only comparison. It does not save, overwrite, delete or merge any record.</div>`;
+        return {ok:true,rows};
+      }catch(e){
+        console.error('Supabase compare failed:',e);
+        if(badge){badge.textContent='Check Failed';badge.className='px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[10px] font-bold';}
+        if(status)status.textContent='Supabase database check failed: '+(e.message||String(e));
+        return {ok:false,message:e.message||String(e)};
+      }
     }
 
     async function bpSyncFromSupabase({silent=false}={}) {
@@ -6647,7 +6701,7 @@ Thank you.
 
       if (data?.session?.user) {
         bpShowAuthenticatedUI(data.session.user);
-        setTimeout(()=>bpSyncFromSupabase({silent:true}), 150);
+        // V27: Do not auto-merge Supabase data into localStorage.
       } else {
         bpShowLoggedOutUI();
       }
