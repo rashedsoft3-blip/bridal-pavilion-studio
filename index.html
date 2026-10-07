@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BRIDAL PAVILION • Studio Management & Invoicing • V28</title>
+  <title>BRIDAL PAVILION • Studio Management & Online Sync • FINAL</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -237,7 +237,7 @@
 
           <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Project URL</label>
           <input id="bp-supabase-url" type="url"
-            value="https://yanrggryutpomhyhwdho.supabase.co"
+            value="https://yanrgrgyutopmyhwhdo.supabase.co"
             class="w-full px-3.5 py-3 rounded-xl border border-warmBorder text-xs mb-3">
 
           <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Publishable Key</label>
@@ -837,6 +837,26 @@
           <div class="bg-white rounded-2xl border p-6"><h3 class="font-semibold">System Health</h3><p class="text-xs text-stone-500 mt-1">Check data links and accounting consistency before you continue.</p><button onclick="runDataHealthCheck(true)" class="mt-4 px-4 py-2 rounded-xl border text-xs font-semibold">Run Health Check</button><div id="data-health-status" class="mt-3 text-xs font-semibold text-emerald-700">Ready</div></div>
         </div>
         <div class="bg-white rounded-2xl border p-6">
+          <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+              <h3 class="font-semibold">Online Database Sync</h3>
+              <p class="text-xs text-stone-500 mt-1">Local changes are saved to Supabase automatically after you are logged in. Existing local data is kept as a safety copy.</p>
+            </div>
+            <span id="bp-cloud-sync-badge" class="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-600 text-[10px] font-bold">Checking...</span>
+          </div>
+          <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="rounded-xl bg-warmPaper p-3"><div class="text-[10px] text-stone-400">Bookings</div><div id="bp-cloud-count-invoices" class="font-bold mt-1">—</div></div>
+            <div class="rounded-xl bg-warmPaper p-3"><div class="text-[10px] text-stone-400">Freelance</div><div id="bp-cloud-count-freelance" class="font-bold mt-1">—</div></div>
+            <div class="rounded-xl bg-warmPaper p-3"><div class="text-[10px] text-stone-400">Team</div><div id="bp-cloud-count-team" class="font-bold mt-1">—</div></div>
+            <div class="rounded-xl bg-warmPaper p-3"><div class="text-[10px] text-stone-400">Expenses</div><div id="bp-cloud-count-expenses" class="font-bold mt-1">—</div></div>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <button onclick="bpSyncAllLocalDataToSupabase(true)" class="px-4 py-2 rounded-xl bg-burgundy-800 text-white text-xs font-semibold">Sync All Local Data Now</button>
+            <button onclick="bpCheckCloudCounts()" class="px-4 py-2 rounded-xl border border-warmBorder text-xs font-semibold">Refresh Cloud Status</button>
+          </div>
+          <div id="bp-cloud-sync-message" class="mt-3 text-[11px] text-stone-500">Waiting for Supabase login...</div>
+        </div>
+        <div class="bg-white rounded-2xl border p-6">
           <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <h3 class="font-semibold">Google Calendar Sync</h3>
@@ -861,28 +881,6 @@
             <button onclick="syncAllBookingsToGoogleCalendar()" class="px-4 py-2 rounded-xl bg-stone-900 text-white text-xs font-semibold">Sync Existing Bookings + Freelance</button>
           </div>
           <div id="gcal-sync-status" class="mt-3 text-[11px] text-stone-500">Not connected yet.</div>
-        </div>
-        <div class="bg-white rounded-2xl border p-6">
-          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div>
-              <h3 class="font-semibold">Supabase Database — Read & Compare</h3>
-              <p class="text-xs text-stone-500 mt-1">শুধু Database থেকে data পড়বে এবং Local বনাম Supabase মিলিয়ে দেখাবে। কোনো data overwrite, delete বা merge করবে না।</p>
-            </div>
-            <span id="bp-db-compare-badge" class="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-600 text-[10px] font-bold">Not Checked</span>
-          </div>
-          <button onclick="bpCompareSupabaseData()" class="mt-4 px-4 py-2 rounded-xl bg-burgundy-800 text-white text-xs font-semibold">Check Supabase Database</button>
-          <div class="mt-4 p-4 rounded-xl bg-stone-50 border border-warmBorder">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div class="text-xs font-semibold text-stone-800">Restore Google Calendar Links</div>
-                <div class="text-[10px] text-stone-500 mt-1">Supabase-এর 12টি saved Calendar mapping শুধু Local booking/freelance records-এ বসাবে। অন্য কোনো data overwrite বা delete করবে না।</div>
-              </div>
-              <button onclick="bpRestoreGoogleCalendarMappings()" class="px-4 py-2 rounded-xl bg-stone-900 text-white text-xs font-semibold">Restore Calendar Links</button>
-            </div>
-            <div id="bp-calendar-restore-status" class="mt-2 text-[10px] text-stone-500">Not restored yet.</div>
-          </div>
-          <div id="bp-db-compare-status" class="mt-3 text-[11px] text-stone-500">Database comparison has not been run yet.</div>
-          <div id="bp-db-compare-results" class="mt-4"></div>
         </div>
         <div class="bg-white rounded-2xl border p-6"><h3 class="font-semibold">Data Summary</h3><div id="data-safety-summary" class="grid grid-cols-2 md:grid-cols-6 gap-3 mt-4"></div><div id="data-health-results" class="mt-5"></div></div>
       </section>
@@ -2008,6 +2006,8 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
         // Secondary safety mirror so a later UI change cannot silently replace the working dataset.
         localStorage.setItem(SAFETY_STORAGE_KEY, JSON.stringify(snapshot));
+        // Cloud sync is debounced and only runs for an authenticated Supabase session.
+        if (typeof bpScheduleCloudSync === 'function') bpScheduleCloudSync();
       } catch (e) {
         console.error("Failed to persist data to localStorage", e);
       }
@@ -6319,10 +6319,202 @@ Thank you.
     }
 
 
+
+    // ================= SUPABASE ONLINE DATABASE SYNC =================
+    // Single-user studio workflow: localStorage remains the immediate UI cache;
+    // Supabase becomes the durable online copy after authentication. The sync is
+    // idempotent for parent records and replaces only child payment/deliverable
+    // rows belonging to the same local parent, so repeated saves do not duplicate them.
+    let bpCloudSyncTimer = null;
+    let bpCloudSyncRunning = false;
+    let bpCloudSyncQueued = false;
+    let bpCloudAuthenticated = false;
+
+    function bpCloudMsg(text, type='info') {
+      const el=document.getElementById('bp-cloud-sync-message');
+      if(el){el.textContent=text||'';el.className='mt-3 text-[11px] '+(type==='error'?'text-rose-700':type==='success'?'text-emerald-700':'text-stone-500');}
+      const badge=document.getElementById('bp-cloud-sync-badge');
+      if(badge){badge.textContent=type==='error'?'Sync Error':type==='success'?'Online / Synced':bpCloudAuthenticated?'Connected':'Waiting';badge.className='px-2.5 py-1 rounded-lg text-[10px] font-bold '+(type==='error'?'bg-rose-50 text-rose-700':type==='success'?'bg-emerald-50 text-emerald-700':bpCloudAuthenticated?'bg-amber-50 text-amber-700':'bg-stone-100 text-stone-600');}
+    }
+
+    function bpIsoDate(v){
+      if(!v)return null;
+      const s=String(v).trim();
+      return s ? s.slice(0,10) : null;
+    }
+    function bpTime(v){
+      if(!v)return null;
+      const s=String(v).trim();
+      return s.length>=5?s.slice(0,8):s;
+    }
+    function bpNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
+
+    async function bpUpsert(table, rows, onConflict='id') {
+      if(!rows.length)return [];
+      const {data,error}=await bpSupabase.from(table).upsert(rows,{onConflict,ignoreDuplicates:false}).select();
+      if(error)throw error;
+      return data||[];
+    }
+
+    async function bpGetOrCreateClient(c){
+      const name=String(c?.name||'').trim();
+      if(!name)return null;
+      const phone=String(c?.phone||'').trim();
+      let q=bpSupabase.from('clients').select('id').eq('name',name).limit(1);
+      if(phone) q=q.eq('phone',phone);
+      const found=await q;
+      if(found.error)throw found.error;
+      if(found.data?.[0]?.id)return found.data[0].id;
+      const created=await bpSupabase.from('clients').insert({name,phone:phone||null,email:String(c?.email||'').trim()||null}).select('id').single();
+      if(created.error)throw created.error;
+      return created.data.id;
+    }
+
+    async function bpSyncBusinessSettings(){
+      const b=appState.branding||{};
+      const existing=await bpSupabase.from('business_settings').select('id').limit(1).maybeSingle();
+      if(existing.error && existing.error.code!=='PGRST116')throw existing.error;
+      const row={business_name:b.businessName||'BRIDAL PAVILION',tagline:b.tagline||null,services_subtitle:b.servicesSubtitle||null,phone:b.phone||null,email:b.email||null,address:b.address||null,logo_url:b.logoUrl||null,updated_at:new Date().toISOString()};
+      if(existing.data?.id)row.id=existing.data.id;
+      const r=await bpSupabase.from('business_settings').upsert(row,{onConflict:'id'});
+      if(r.error)throw r.error;
+    }
+
+    async function bpSyncInvoices(){
+      const invoices=Array.isArray(appState.invoices)?appState.invoices:[];
+      const invoiceRows=[];
+      const dayRows=[];
+      const assignmentRows=[];
+      const deliverableRows=[];
+      const paymentParents=[];
+      const clientIds=new Map();
+
+      for(const inv of invoices){
+        const c=inv.client||{};
+        const key=`${String(c.name||'').trim()}|${String(c.phone||'').trim()}`;
+        if(c.name && !clientIds.has(key))clientIds.set(key,await bpGetOrCreateClient(c));
+        const clientId=clientIds.get(key)||null;
+        const pkg=inv.package||{};
+        invoiceRows.push({
+          id:String(inv.id), invoice_number:inv.number||null, client_id:clientId,
+          occasion:c.occasion||null,start_date:bpIsoDate(c.startDate),end_date:bpIsoDate(c.endDate),venue:c.venue||null,area:c.area||null,
+          venue_color:c.venueColor||null,dress:c.dress||null,theme:c.theme||null,package_price:bpNum(pkg.price),discount_type:pkg.discountType||null,discount:bpNum(pkg.discount),total:bpNum(pkg.total),advance:bpNum(pkg.advance),due:bpNum(pkg.due),payment_method:pkg.paymentMethod||null,
+          show_costs_on_invoice:!!inv.showCostsOnInvoice,notes:inv.notes||null,signed_by:inv.signedBy||null,signed_title:inv.signedTitle||null,status:inv.status||null,source_created_at:bpIsoDate(inv.createdAt),updated_at:new Date().toISOString()
+        });
+        paymentParents.push({id:String(inv.id),payments:Array.isArray(pkg.payments)?pkg.payments:[]});
+        (Array.isArray(inv.deliverables)?inv.deliverables:[]).forEach(d=>deliverableRows.push({invoice_id:String(inv.id),deliverable:String(d)}));
+        (Array.isArray(inv.days)?inv.days:[]).forEach((d,i)=>{
+          const dayId=String(d.dayId||`${inv.id}-day-${i}`);
+          dayRows.push({id:dayId,invoice_id:String(inv.id),title:d.title||`Day ${i+1}`,work_date:bpIsoDate(d.date),venue:d.venue||null,area:d.area||null,start_time:bpTime(d.startTime),end_time:bpTime(d.endTime),photographer_qty:Number(d.photographerQty||0),cinematographer_qty:Number(d.cinematographerQty||0),photographer_names:d.photographerNames||'',cinematographer_names:d.cinematographerNames||'',note:d.note||null,photographer_cost:bpNum(d.photographerCost),cinematographer_cost:bpNum(d.cinematographerCost),assistant_cost:bpNum(d.assistantCost),editor_cost:bpNum(d.editorCost),transport_cost:bpNum(d.transportCost),other_cost:bpNum(d.otherCost)});
+          const people=[...(Array.isArray(d.photographers)?d.photographers:[]),...(Array.isArray(d.cinematographers)?d.cinematographers:[])];
+          people.forEach(p=>{if(p?.name)assignmentRows.push({day_id:dayId,person_name:String(p.name),role:p.role||null});});
+          const geid=inv.googleCalendarEventIds?.[i];
+          if(geid) calendarEventRows.push({source_type:'invoice_day',source_id:dayId,calendar_id:bpCalendarId(),google_event_id:String(geid)});
+        });
+      }
+      await bpUpsert('invoices',invoiceRows,'id');
+      await bpUpsert('invoice_days',dayRows,'id');
+      // Assignments/deliverables/payments are child arrays owned by the local parent.
+      for(const inv of invoices){
+        const iid=String(inv.id);
+        const d=await bpSupabase.from('invoice_deliverables').delete().eq('invoice_id',iid); if(d.error)throw d.error;
+        const ds=(inv.deliverables||[]).map(x=>({invoice_id:iid,deliverable:String(x)})); if(ds.length){const r=await bpSupabase.from('invoice_deliverables').insert(ds);if(r.error)throw r.error;}
+        const p=await bpSupabase.from('invoice_payments').delete().eq('invoice_id',iid); if(p.error)throw p.error;
+        const ps=(inv.package?.payments||[]).map(x=>({invoice_id:iid,payment_date:bpIsoDate(x.date),amount:bpNum(x.amount),payment_method:x.method||null,transaction_ref:x.transactionId||x.transactionRef||null,note:x.note||null})); if(ps.length){const r=await bpSupabase.from('invoice_payments').insert(ps);if(r.error)throw r.error;}
+      }
+      // Replace assignments for the invoice days represented locally.
+      for(const d of dayRows){const del=await bpSupabase.from('invoice_day_assignments').delete().eq('day_id',d.id);if(del.error)throw del.error;const rows=assignmentRows.filter(x=>x.day_id===d.id);if(rows.length){const r=await bpSupabase.from('invoice_day_assignments').insert(rows);if(r.error)throw r.error;}}
+    }
+
+    function bpCalendarId(){try{const x=JSON.parse(localStorage.getItem('bp_google_calendar_settings')||localStorage.getItem('bp_google_calendar_settings_backup')||'{}');return x.calendarId||'rashedsoft3@gmail.com';}catch(_){return 'rashedsoft3@gmail.com';}}
+    let calendarEventRows=[];
+
+    async function bpSyncTeam(){
+      const members=(appState.teamMembers||[]).map(x=>({id:String(x.id),name:x.name||'Unknown',role:x.role||null,whatsapp:x.whatsapp||null,bkash:x.bkash||null,nagad:x.nagad||null,bank:x.bank||null,payment_preference:x.paymentPreference||null,active:x.active!==false,updated_at:new Date().toISOString()}));
+      await bpUpsert('team_members',members,'id');
+      const rows=(appState.teamPayments||[]).map(r=>({id:String(r.id),member_name:r.memberName||null,role:r.role||null,work_date:bpIsoDate(r.workDate),work_type:r.workType||null,client_name:r.clientName||null,agreed_pay:bpNum(r.agreedPay),note:r.note||null,invoice_id:r.invoiceId?String(r.invoiceId):null,day_id:r.dayId?String(r.dayId):null,venue:r.venue||null,area:r.area||null,updated_at:new Date().toISOString()}));
+      await bpUpsert('team_payments',rows,'id');
+      for(const r of appState.teamPayments||[]){const id=String(r.id);const del=await bpSupabase.from('team_payment_records').delete().eq('team_payment_id',id);if(del.error)throw del.error;const ps=(r.payments||[]).map(p=>({team_payment_id:id,payment_date:bpIsoDate(p.date),amount:bpNum(p.amount),payment_method:p.method||null,transaction_ref:p.transactionId||p.transactionRef||null,note:p.note||null}));if(ps.length){const ins=await bpSupabase.from('team_payment_records').insert(ps);if(ins.error)throw ins.error;}}
+    }
+
+    async function bpSyncDelivery(){
+      const rows=Object.entries(appState.deliveryRecords||{}).filter(([id])=>appState.invoices.some(i=>String(i.id)===String(id))).map(([id,r])=>({invoice_id:String(id),status:r.status||null,drive_link:r.driveLink||null,delivery_date:bpIsoDate(r.deliveryDate),download_deadline:bpIsoDate(r.downloadDeadline),correction_deadline:bpIsoDate(r.correctionDeadline),correction_status:r.correctionStatus||null,note:r.note||null,sent_at:r.sentAt||null,completed_at:r.completedAt||null}));
+      await bpUpsert('delivery_records',rows,'invoice_id');
+    }
+
+    async function bpSyncFreelance(){
+      const jobs=(appState.freelanceJobs||[]).map(j=>({id:String(j.id),company_name:j.companyName||null,contact_name:j.contactName||null,phone:j.phone||null,work_date:bpIsoDate(j.workDate),start_time:bpTime(j.startTime),end_time:bpTime(j.endTime),overnight:!!j.overnight,work_type:j.workType||null,role:j.role||null,location:j.location||null,agreed_amount:bpNum(j.agreedAmount),received_amount:bpNum(j.receivedAmount),payment_due_date:bpIsoDate(j.paymentDueDate),status:j.status||null,payment_method:j.paymentMethod||null,transaction_ref:j.transactionRef||null,note:j.note||null,assigned_photographer:j.assignedPhotographer||null,hired_name:j.hiredName||null,hired_role:j.hiredRole||null,hired_phone:j.hiredPhone||null,hired_fee:bpNum(j.hiredFee),hired_paid_amount:bpNum(j.hiredPaidAmount),billable_extra_label:j.billableExtraLabel||null,billable_extra:bpNum(j.billableExtra),google_calendar_event_id:j.googleCalendarEventId||null,source_created_at:j.createdAt||null,source_updated_at:j.updatedAt||null,updated_at:new Date().toISOString()}));
+      await bpUpsert('freelance_jobs',jobs,'id');
+      for(const j of appState.freelanceJobs||[]){
+        const id=String(j.id);
+        let del=await bpSupabase.from('freelance_payment_history').delete().eq('freelance_job_id',id);if(del.error)throw del.error;
+        let rows=(j.paymentHistory||[]).map(p=>({freelance_job_id:id,payment_date:bpIsoDate(p.date),amount:bpNum(p.amount),payment_method:p.method||null,transaction_ref:p.transactionId||p.transactionRef||null,note:p.note||null}));if(rows.length){const r=await bpSupabase.from('freelance_payment_history').insert(rows);if(r.error)throw r.error;}
+        del=await bpSupabase.from('hired_payment_history').delete().eq('freelance_job_id',id);if(del.error)throw del.error;
+        rows=(j.hiredPaymentHistory||[]).map(p=>({freelance_job_id:id,payment_date:bpIsoDate(p.date),amount:bpNum(p.amount),payment_method:p.method||null,transaction_ref:p.transactionId||p.transactionRef||null,note:p.note||null}));if(rows.length){const r=await bpSupabase.from('hired_payment_history').insert(rows);if(r.error)throw r.error;}
+      }
+      const balances=[];
+      Object.entries(appState.freelanceCompanyBalances||{}).forEach(([company,months])=>Object.entries(months||{}).forEach(([month,balance])=>balances.push({company_key:String(company),balance_month:`${month}-01`,balance:bpNum(balance)})));
+      if(balances.length)await bpUpsert('freelance_company_balances',balances,'company_key,balance_month');
+    }
+
+    async function bpSyncExpenses(){
+      const rows=(appState.expenses||[]).map(e=>({id:String(e.id),expense_date:bpIsoDate(e.date),category:e.category||null,description:e.description||null,amount:bpNum(e.amount),updated_at:new Date().toISOString()}));
+      await bpUpsert('expenses',rows,'id');
+    }
+
+    async function bpSyncCalendarMappings(){
+      const rows=calendarEventRows||[];
+      const seen=new Set();
+      const unique=rows.filter(r=>{const k=`${r.source_type}|${r.source_id}`;if(seen.has(k))return false;seen.add(k);return true;});
+      if(unique.length)await bpUpsert('google_calendar_events',unique,'source_type,source_id');
+      // Freelance calendar IDs live directly on the job too; this table is the normalized mapping.
+      const f=(appState.freelanceJobs||[]).filter(j=>j.googleCalendarEventId).map(j=>({source_type:'freelance_job',source_id:String(j.id),calendar_id:bpCalendarId(),google_event_id:String(j.googleCalendarEventId)}));
+      if(f.length)await bpUpsert('google_calendar_events',f,'source_type,source_id');
+    }
+
+    async function bpSyncAllLocalDataToSupabase(manual=false){
+      if(bpCloudSyncRunning){bpCloudSyncQueued=true;return;}
+      if(!bpSupabase||!bpCloudAuthenticated){if(manual)bpCloudMsg('Supabase login is required before cloud sync.','error');return;}
+      bpCloudSyncRunning=true;bpCloudSyncQueued=false;calendarEventRows=[];
+      try{
+        bpCloudMsg('Syncing local data to Supabase...');
+        await bpSyncBusinessSettings();
+        await bpSyncInvoices();
+        await bpSyncTeam();
+        await bpSyncDelivery();
+        await bpSyncFreelance();
+        await bpSyncExpenses();
+        await bpSyncCalendarMappings();
+        bpCloudMsg(`Synced ${appState.invoices.length} bookings, ${(appState.freelanceJobs||[]).length} freelance jobs, ${(appState.teamMembers||[]).length} team members and ${(appState.expenses||[]).length} expenses. Personal/living expenses remain local because no matching Supabase table exists.`,'success');
+        await bpCheckCloudCounts(false);
+      }catch(e){
+        console.error('Supabase full sync failed:',e);
+        bpCloudMsg('Cloud sync failed: '+(e?.message||'Unknown error'),'error');
+      }finally{
+        bpCloudSyncRunning=false;
+        if(bpCloudSyncQueued)bpScheduleCloudSync();
+      }
+    }
+
+    function bpScheduleCloudSync(){
+      if(!bpCloudAuthenticated)return;
+      clearTimeout(bpCloudSyncTimer);
+      bpCloudSyncTimer=setTimeout(()=>bpSyncAllLocalDataToSupabase(false),1200);
+    }
+
+    async function bpCheckCloudCounts(showMessage=true){
+      if(!bpSupabase||!bpCloudAuthenticated)return;
+      try{
+        const tables=[['invoices','bp-cloud-count-invoices'],['freelance_jobs','bp-cloud-count-freelance'],['team_members','bp-cloud-count-team'],['expenses','bp-cloud-count-expenses']];
+        for(const [table,id] of tables){const r=await bpSupabase.from(table).select('*',{count:'exact',head:true});if(r.error)throw r.error;const el=document.getElementById(id);if(el)el.textContent=String(r.count??0);}
+        if(showMessage)bpCloudMsg('Cloud counts refreshed.','success');
+      }catch(e){bpCloudMsg('Could not read cloud counts: '+(e?.message||'Unknown error'),'error');}
+    }
+
     // ================= SUPABASE AUTHENTICATION =================
     // This version adds an authentication gate without deleting or rewriting
     // the existing localStorage dataset. Database/RLS sync is the next step.
-    const BP_SUPABASE_URL_DEFAULT = 'https://yanrggryutpomhyhwdho.supabase.co';
+    const BP_SUPABASE_URL_DEFAULT = 'https://yanrgrgyutopmyhwhdo.supabase.co';
     const BP_SUPABASE_CONFIG_KEY = 'bp_supabase_connection_v1';
 
     let bpSupabase = null;
@@ -6509,252 +6701,9 @@ Thank you.
       }
 
       bpShowAuthenticatedUI(data?.user);
-      // V27: Database sync is manual and read-only compare first.
       if (btn) {
         btn.disabled = false;
         btn.textContent = 'Login to Studio';
-      }
-    }
-
-
-
-    // ================= SUPABASE DATABASE READ SYNC (SAFE FIRST STEP) =================
-    // This first database-sync build is intentionally non-destructive: it reads the
-    // authenticated user's Supabase tables and only adds remote records that are
-    // missing locally. Existing local records are never overwritten or deleted.
-    const BP_DB_SYNC_KEY = 'bp_supabase_db_sync_v1';
-
-    async function bpDbTable(table) {
-      if (!bpSupabase) throw new Error('Supabase client is not ready.');
-      const { data, error } = await bpSupabase.from(table).select('*');
-      if (error) throw new Error(`${table}: ${error.message}`);
-      return Array.isArray(data) ? data : [];
-    }
-
-    function bpMergeById(local, remote, key='id') {
-      const out = Array.isArray(local) ? local.slice() : [];
-      const seen = new Set(out.map(x => String(x?.[key] ?? '')));
-      for (const row of (remote || [])) {
-        const id = row?.[key];
-        if (id == null || seen.has(String(id))) continue;
-        out.push(row); seen.add(String(id));
-      }
-      return out;
-    }
-
-    function bpRemoteInvoice(row, clientMap, days, deliverables, payments) {
-      const client = clientMap.get(String(row.client_id || '')) || {};
-      const invDays = (days || []).filter(d => String(d.invoice_id) === String(row.id)).map(d => ({
-        dayId:d.id, title:d.title || '', date:d.work_date || '', workDate:d.work_date || '', venue:d.venue || '', area:d.area || '',
-        startTime:String(d.start_time || '').slice(0,5), endTime:String(d.end_time || '').slice(0,5),
-        photographerQty:Number(d.photographer_qty||0), cinematographerQty:Number(d.cinematographer_qty||0),
-        photographerNames:d.photographer_names || '', cinematographerNames:d.cinematographer_names || '', note:d.note || '',
-        photographerCost:Number(d.photographer_cost||0), cinematographerCost:Number(d.cinematographer_cost||0),
-        assistantCost:Number(d.assistant_cost||0), editorCost:Number(d.editor_cost||0), transportCost:Number(d.transport_cost||0), otherCost:Number(d.other_cost||0)
-      }));
-      return {
-        id:row.id, number:row.invoice_number || row.id,
-        client:{name:client.name || 'Client', phone:client.phone || '', email:client.email || '', occasion:row.occasion || '', startDate:row.start_date || '', endDate:row.end_date || '', venue:row.venue || '', area:row.area || '', venueColor:row.venue_color || '', dress:row.dress || '', theme:row.theme || ''},
-        package:{price:Number(row.package_price||0), discountType:row.discount_type || 'bdt', discount:Number(row.discount||0), total:Number(row.total||0), advance:Number(row.advance||0), due:Number(row.due||0), paymentMethod:row.payment_method || '', payments:(payments||[]).filter(x=>String(x.invoice_id)===String(row.id)).map(x=>({id:x.id,date:x.payment_date||'',amount:Number(x.amount||0),method:x.payment_method||'',reference:x.transaction_ref||'',note:x.note||''}))},
-        deliverables:(deliverables||[]).filter(x=>String(x.invoice_id)===String(row.id)).map(x=>x.deliverable).filter(Boolean),
-        days:invDays, showCostsOnInvoice:!!row.show_costs_on_invoice, notes:row.notes || '', signedBy:row.signed_by || '', signedTitle:row.signed_title || '', status:row.status || 'Draft', createdAt:row.source_created_at || String(row.created_at||'').slice(0,10)
-      };
-    }
-
-    async function bpCompareSupabaseData(){
-      const badge=document.getElementById('bp-db-compare-badge');
-      const status=document.getElementById('bp-db-compare-status');
-      const results=document.getElementById('bp-db-compare-results');
-      if(!bpSupabase){
-        if(badge){badge.textContent='Not Connected';badge.className='px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[10px] font-bold';}
-        if(status)status.textContent='Supabase client is not ready. Please log in again.';
-        return;
-      }
-      if(badge){badge.textContent='Checking…';badge.className='px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-bold';}
-      if(status)status.textContent='Reading Supabase tables. Local data will not be changed.';
-      if(results)results.innerHTML='';
-      try{
-        const tables=['invoices','invoice_days','expenses','team_members','team_payments','delivery_records','freelance_jobs','freelance_company_balances','google_calendar_events'];
-        const remoteResults=await Promise.all(tables.map(t=>bpDbTable(t)));
-        const remote={}; tables.forEach((t,i)=>remote[t]=remoteResults[i]);
-        const local={
-          invoices:Array.isArray(appState.invoices)?appState.invoices:[],
-          invoice_days:(appState.invoices||[]).flatMap(x=>Array.isArray(x.days)?x.days:[]),
-          expenses:Array.isArray(appState.expenses)?appState.expenses:[],
-          team_members:Array.isArray(appState.teamMembers)?appState.teamMembers:[],
-          team_payments:Array.isArray(appState.teamPayments)?appState.teamPayments:[],
-          delivery_records:Object.keys(appState.deliveryRecords||{}).map(id=>({invoice_id:id})),
-          freelance_jobs:Array.isArray(appState.freelanceJobs)?appState.freelanceJobs:[],
-          freelance_company_balances:Object.entries(appState.freelanceCompanyBalances||{}).flatMap(([company,months])=>Object.keys(months||{}).map(month=>({company_key:company,balance_month:month}))),
-          google_calendar_events:[]
-        };
-        const labels={invoices:'Bookings / Invoices',invoice_days:'Invoice Days',expenses:'Expenses',team_members:'Team Members',team_payments:'Team Payments',delivery_records:'Delivery Records',freelance_jobs:'Freelance Jobs',freelance_company_balances:'Company Balances',google_calendar_events:'Google Calendar Links'};
-        const rows=tables.map(t=>({table:t,label:labels[t],local:local[t].length,remote:remote[t].length,delta:remote[t].length-local[t].length}));
-        const mismatches=rows.filter(r=>r.delta!==0);
-        if(badge){badge.textContent=mismatches.length?'Count Difference Found':'Counts Match';badge.className='px-2.5 py-1 rounded-lg '+(mismatches.length?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700')+' text-[10px] font-bold';}
-        if(status)status.textContent=`Checked ${new Date().toLocaleString()} — no local data was changed.`;
-        if(results)results.innerHTML=`<div class="overflow-x-auto border border-warmBorder rounded-xl"><table class="w-full text-xs"><thead><tr class="bg-stone-50 text-[10px] uppercase text-stone-400"><th class="text-left p-3">Data</th><th class="text-right p-3">Local</th><th class="text-right p-3">Supabase</th><th class="text-right p-3">Difference</th></tr></thead><tbody>${rows.map(r=>`<tr class="border-t border-stone-100"><td class="p-3 font-semibold">${escapeHtml(r.label)}</td><td class="p-3 text-right">${r.local}</td><td class="p-3 text-right">${r.remote}</td><td class="p-3 text-right ${r.delta?'text-amber-700 font-bold':'text-emerald-700'}">${r.delta>0?'+':''}${r.delta}</td></tr>`).join('')}</tbody></table></div><div class="mt-3 text-[10px] text-stone-400">This is a read-only comparison. It does not save, overwrite, delete or merge any record.</div>`;
-        return {ok:true,rows};
-      }catch(e){
-        console.error('Supabase compare failed:',e);
-        if(badge){badge.textContent='Check Failed';badge.className='px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[10px] font-bold';}
-        if(status)status.textContent='Supabase database check failed: '+(e.message||String(e));
-        return {ok:false,message:e.message||String(e)};
-      }
-    }
-
-    function bpNormCalendarText(v){
-      return String(v||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[–—]/g,'-');
-    }
-    async function bpRestoreGoogleCalendarMappings(){
-      const status=document.getElementById('bp-calendar-restore-status');
-      if(status) status.textContent='Reading Google Calendar mappings from Supabase…';
-      if(!bpSupabase){
-        if(status) status.textContent='Supabase client is not ready. Please log in again.';
-        return {ok:false,message:'Supabase client not ready.'};
-      }
-      try{
-        const {data,error}=await bpSupabase.from('google_calendar_events').select('source_type,source_id,calendar_id,google_event_id');
-        if(error) throw new Error(error.message);
-        const rows=Array.isArray(data)?data:[];
-        let invoiceApplied=0, freelanceApplied=0, alreadyPresent=0, missingLocal=0, ambiguous=0;
-
-        const jobs=Array.isArray(appState.freelanceJobs)?appState.freelanceJobs:[];
-        const usedLocal=new Set();
-        const remoteBySource=new Map(rows.map(x=>[`${x.source_type}:${x.source_id}`,x]));
-
-        // First pass: exact source-id match when the local record still has the same id.
-        for(const job of jobs){
-          const x=remoteBySource.get(`freelance_job:${job.id}`);
-          if(!x || !x.google_event_id) continue;
-          if(job.googleCalendarEventId) alreadyPresent++;
-          else { job.googleCalendarEventId=x.google_event_id; freelanceApplied++; }
-          usedLocal.add(String(job.id));
-        }
-
-        // Second pass: safely recover mappings when local IDs differ, using stable job metadata.
-        for(const x of rows){
-          if(x.source_type!=='freelance_job' || !x.google_event_id) continue;
-          if(jobs.some(j=>String(j.id)===String(x.source_id))) continue;
-
-          // The Supabase migration preserved the source id in most cases, but if a local
-          // browser copy has regenerated ids, match by company + work date + location.
-          // Role is included when available. Never guess when more than one local job matches.
-          const remoteKey=String(x.source_id||'');
-          let candidateJobs=[];
-          const sourceParts=remoteKey.split('|');
-          // We do not depend on source id formatting; use a small set of fields that are
-          // present in both the local job and the imported Supabase record.
-          // The remote table itself does not carry those fields, so use the embedded
-          // recovery snapshot as a trusted metadata fallback when available.
-          const snapJobs=Array.isArray(VERIFIED_RECOVERY_SNAPSHOT?.freelanceJobs)?VERIFIED_RECOVERY_SNAPSHOT.freelanceJobs:[];
-          const snap=snapJobs.find(j=>String(j.id)===remoteKey);
-          if(snap){
-            candidateJobs=jobs.filter(j=>
-              String(j.workDate||'')===String(snap.workDate||'') &&
-              bpNormCalendarText(j.companyName)===bpNormCalendarText(snap.companyName) &&
-              bpNormCalendarText(j.role||'')===bpNormCalendarText(snap.role||'') &&
-              (!snap.location || !j.location || bpNormCalendarText(j.location)===bpNormCalendarText(snap.location))
-            );
-          }
-          if(candidateJobs.length===0 && snap){
-            candidateJobs=jobs.filter(j=>
-              String(j.workDate||'')===String(snap.workDate||'') &&
-              bpNormCalendarText(j.companyName)===bpNormCalendarText(snap.companyName)
-            );
-          }
-          if(candidateJobs.length===1){
-            const job=candidateJobs[0];
-            if(job.googleCalendarEventId) alreadyPresent++;
-            else { job.googleCalendarEventId=x.google_event_id; freelanceApplied++; }
-            usedLocal.add(String(job.id));
-          } else if(candidateJobs.length>1){
-            ambiguous++;
-          } else {
-            missingLocal++;
-          }
-        }
-
-        // Invoice-day mappings: exact source-id restore remains safest.
-        const maps=new Map(rows.map(x=>[`${x.source_type}:${x.source_id}`,x.google_event_id]));
-        for(const inv of (appState.invoices||[])){
-          for(let i=0;i<(inv.days||[]).length;i++){
-            const d=inv.days[i];
-            const sourceId=d.dayId ?? d.id;
-            const eid=maps.get(`invoice_day:${sourceId}`);
-            if(!eid) continue;
-            if(!Array.isArray(inv.googleCalendarEventIds)) inv.googleCalendarEventIds=[];
-            if(inv.googleCalendarEventIds[i]) alreadyPresent++;
-            else { inv.googleCalendarEventIds[i]=eid; invoiceApplied++; }
-          }
-        }
-
-        persistData();
-        try{ renderDashboard(); renderInvoicesList(); renderBookingsMaster(); renderFreelance(); renderDataSafety?.(); }catch(e){}
-        const msg=`Restored ${invoiceApplied+freelanceApplied} Calendar links (${invoiceApplied} invoice days, ${freelanceApplied} freelance jobs). Existing links preserved: ${alreadyPresent}. Remote mappings without a safe local match: ${missingLocal}. Ambiguous matches skipped: ${ambiguous}. No records were deleted or overwritten.`;
-        if(status) status.textContent=msg;
-        showToast(`Calendar links restored: ${invoiceApplied+freelanceApplied}`);
-        return {ok:true,remoteCount:rows.length,invoiceApplied,freelanceApplied,alreadyPresent,missingLocal,ambiguous};
-      }catch(e){
-        console.error('Calendar mapping restore failed:',e);
-        if(status) status.textContent='Restore failed: '+(e.message||String(e));
-        return {ok:false,message:e.message||String(e)};
-      }
-    }
-
-    async function bpSyncFromSupabase({silent=false}={}) {
-      if (!bpSupabase) return {ok:false, message:'Supabase client not ready.'};
-      try {
-        const tables=['business_settings','clients','invoices','invoice_payments','invoice_deliverables','invoice_days','team_members','team_payments','team_payment_records','delivery_records','freelance_jobs','freelance_payment_history','hired_payment_history','expenses','freelance_company_balances','google_calendar_events'];
-        const results=await Promise.all(tables.map(t=>bpDbTable(t)));
-        const data={}; tables.forEach((t,i)=>data[t]=results[i]);
-
-        // Branding: only fill missing local values from the remote business settings.
-        if(data.business_settings[0]) appState.branding=Object.assign({},data.business_settings[0],appState.branding||{});
-
-        const clients=new Map(data.clients.map(x=>[String(x.id),x]));
-        const remoteInvoices=data.invoices.map(x=>bpRemoteInvoice(x,clients,data.invoice_days,data.invoice_deliverables,data.invoice_payments));
-        appState.invoices=bpMergeById(appState.invoices,remoteInvoices,'id');
-
-        // Team members
-        appState.teamMembers=bpMergeById(appState.teamMembers,data.team_members.map(x=>({id:x.id,name:x.name,role:x.role||'',whatsapp:x.whatsapp||'',bkash:x.bkash||'',nagad:x.nagad||'',bank:x.bank||'',paymentPreference:x.payment_preference||'',active:x.active!==false})),'id');
-
-        // Team payments + their payment history.
-        const teamRecords=new Map();
-        for(const r of data.team_payment_records) { const k=String(r.team_payment_id); if(!teamRecords.has(k)) teamRecords.set(k,[]); teamRecords.get(k).push({id:r.id,date:r.payment_date||'',amount:Number(r.amount||0),method:r.payment_method||'',transactionId:r.transaction_ref||'',note:r.note||''}); }
-        const remoteTeam=data.team_payments.map(x=>({id:x.id,memberName:x.member_name||'',role:x.role||'',workDate:x.work_date||'',workType:x.work_type||'',clientName:x.client_name||'',agreedPay:Number(x.agreed_pay||0),note:x.note||'',invoiceId:x.invoice_id||'',dayId:x.day_id||'',venue:x.venue||'',area:x.area||'',payments:teamRecords.get(String(x.id))||[]}));
-        appState.teamPayments=bpMergeById(appState.teamPayments,remoteTeam,'id');
-
-        // Delivery records are keyed by invoice_id in the app.
-        const remoteDelivery={};
-        for(const x of data.delivery_records) remoteDelivery[x.invoice_id]={status:x.status||'Pending',driveLink:x.drive_link||'',deliveryDate:x.delivery_date||'',downloadDeadline:x.download_deadline||'',correctionDeadline:x.correction_deadline||'',correctionStatus:x.correction_status||'None',note:x.note||'',sentAt:x.sent_at||'',completedAt:x.completed_at||''};
-        appState.deliveryRecords=Object.assign({},remoteDelivery,appState.deliveryRecords||{});
-
-        // Freelance jobs + payment histories.
-        const fp=new Map(), hp=new Map();
-        for(const r of data.freelance_payment_history){const k=String(r.freelance_job_id);if(!fp.has(k))fp.set(k,[]);fp.get(k).push({id:r.id,date:r.payment_date||'',amount:Number(r.amount||0),method:r.payment_method||'',reference:r.transaction_ref||'',note:r.note||''});}
-        for(const r of data.hired_payment_history){const k=String(r.freelance_job_id);if(!hp.has(k))hp.set(k,[]);hp.get(k).push({id:r.id,date:r.payment_date||'',amount:Number(r.amount||0),method:r.payment_method||'',reference:r.transaction_ref||'',note:r.note||''});}
-        const remoteJobs=data.freelance_jobs.map(x=>({id:x.id,companyName:x.company_name||'',contactName:x.contact_name||'',phone:x.phone||'',workDate:x.work_date||'',startTime:String(x.start_time||'').slice(0,5),endTime:String(x.end_time||'').slice(0,5),overnight:!!x.overnight,workType:x.work_type||'',role:x.role||'',location:x.location||'',agreedAmount:Number(x.agreed_amount||0),receivedAmount:Number(x.received_amount||0),paymentDueDate:x.payment_due_date||'',status:x.status||'',paymentMethod:x.payment_method||'',transactionRef:x.transaction_ref||'',note:x.note||'',assignedPhotographer:x.assigned_photographer||'',hiredName:x.hired_name||'',hiredRole:x.hired_role||'',hiredPhone:x.hired_phone||'',hiredFee:Number(x.hired_fee||0),hiredPaidAmount:Number(x.hired_paid_amount||0),billableExtraLabel:x.billable_extra_label||'',billableExtra:Number(x.billable_extra||0),googleCalendarEventId:x.google_calendar_event_id||'',createdAt:x.source_created_at||x.created_at||'',updatedAt:x.source_updated_at||x.updated_at||'',paymentHistory:fp.get(String(x.id))||[],hiredPaymentHistory:hp.get(String(x.id))||[]}));
-        appState.freelanceJobs=bpMergeById(appState.freelanceJobs,remoteJobs,'id');
-
-        // Expenses and company balances.
-        appState.expenses=bpMergeById(appState.expenses,data.expenses.map(x=>({id:x.id,date:x.expense_date||'',category:x.category||'',description:x.description||'',amount:Number(x.amount||0)})),'id');
-        if(!appState.freelanceCompanyBalances) appState.freelanceCompanyBalances={};
-        for(const x of data.freelance_company_balances){const k=String(x.company_key||'').trim().toLowerCase(),m=String(x.balance_month||'').slice(0,7);if(k&&m){if(!appState.freelanceCompanyBalances[k])appState.freelanceCompanyBalances[k]={};if(appState.freelanceCompanyBalances[k][m]==null)appState.freelanceCompanyBalances[k][m]=Number(x.balance||0);}}
-
-        // Google mapping IDs are kept on their source objects where possible.
-        const maps=new Map(data.google_calendar_events.map(x=>[`${x.source_type}:${x.source_id}`,x.google_event_id]));
-        for(const inv of (appState.invoices||[])) for(let i=0;i<(inv.days||[]).length;i++){const d=inv.days[i];const eid=maps.get(`invoice_day:${d.dayId||d.id}`);if(eid){if(!Array.isArray(inv.googleCalendarEventIds))inv.googleCalendarEventIds=[];if(!inv.googleCalendarEventIds[i])inv.googleCalendarEventIds[i]=eid;}}
-        for(const j of (appState.freelanceJobs||[])){const eid=maps.get(`freelance_job:${j.id}`);if(eid&&!j.googleCalendarEventId)j.googleCalendarEventId=eid;}
-
-        persistData(); applyBrandingUI(); renderDashboard(); renderInvoicesList(); renderBookingsMaster(); renderTeamPayments(); renderDelivery(); renderFreelance(); renderOverallFinance?.(); renderDataSafety?.();
-        const stamp=new Date().toISOString();localStorage.setItem(BP_DB_SYNC_KEY,stamp);
-        if(!silent)showToast('Supabase data sync complete — local data preserved.');
-        return {ok:true,counts:Object.fromEntries(tables.map(t=>[t,data[t].length])),syncedAt:stamp};
-      } catch(e) {
-        console.error('Supabase database sync failed:',e);
-        if(!silent)showToast('Supabase database sync failed: '+(e.message||'Unknown error'));
-        return {ok:false,message:e.message||String(e)};
       }
     }
 
@@ -6768,6 +6717,9 @@ Thank you.
         userEl.title = user?.email || '';
         userEl.classList.remove('hidden');
       }
+      bpCloudAuthenticated = true;
+      bpCloudMsg('Logged in. Cloud sync will keep your online database updated.');
+      setTimeout(()=>bpSyncAllLocalDataToSupabase(false), 700);
     }
 
     function bpShowLoggedOutUI() {
@@ -6785,6 +6737,8 @@ Thank you.
         return;
       }
       document.getElementById('bp-login-password').value = '';
+      bpCloudAuthenticated = false;
+      bpCloudMsg('Logged out. Cloud sync is paused.');
       bpShowLoggedOutUI();
     }
 
@@ -6810,7 +6764,6 @@ Thank you.
 
       if (data?.session?.user) {
         bpShowAuthenticatedUI(data.session.user);
-        // V27: Do not auto-merge Supabase data into localStorage.
       } else {
         bpShowLoggedOutUI();
       }
