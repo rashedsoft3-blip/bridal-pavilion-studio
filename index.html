@@ -6487,9 +6487,111 @@ Thank you.
       }
 
       bpShowAuthenticatedUI(data?.user);
+      setTimeout(()=>bpSyncFromSupabase({silent:false}), 150);
       if (btn) {
         btn.disabled = false;
         btn.textContent = 'Login to Studio';
+      }
+    }
+
+
+
+    // ================= SUPABASE DATABASE READ SYNC (SAFE FIRST STEP) =================
+    // This first database-sync build is intentionally non-destructive: it reads the
+    // authenticated user's Supabase tables and only adds remote records that are
+    // missing locally. Existing local records are never overwritten or deleted.
+    const BP_DB_SYNC_KEY = 'bp_supabase_db_sync_v1';
+
+    async function bpDbTable(table) {
+      if (!bpSupabase) throw new Error('Supabase client is not ready.');
+      const { data, error } = await bpSupabase.from(table).select('*');
+      if (error) throw new Error(`${table}: ${error.message}`);
+      return Array.isArray(data) ? data : [];
+    }
+
+    function bpMergeById(local, remote, key='id') {
+      const out = Array.isArray(local) ? local.slice() : [];
+      const seen = new Set(out.map(x => String(x?.[key] ?? '')));
+      for (const row of (remote || [])) {
+        const id = row?.[key];
+        if (id == null || seen.has(String(id))) continue;
+        out.push(row); seen.add(String(id));
+      }
+      return out;
+    }
+
+    function bpRemoteInvoice(row, clientMap, days, deliverables, payments) {
+      const client = clientMap.get(String(row.client_id || '')) || {};
+      const invDays = (days || []).filter(d => String(d.invoice_id) === String(row.id)).map(d => ({
+        dayId:d.id, title:d.title || '', date:d.work_date || '', workDate:d.work_date || '', venue:d.venue || '', area:d.area || '',
+        startTime:String(d.start_time || '').slice(0,5), endTime:String(d.end_time || '').slice(0,5),
+        photographerQty:Number(d.photographer_qty||0), cinematographerQty:Number(d.cinematographer_qty||0),
+        photographerNames:d.photographer_names || '', cinematographerNames:d.cinematographer_names || '', note:d.note || '',
+        photographerCost:Number(d.photographer_cost||0), cinematographerCost:Number(d.cinematographer_cost||0),
+        assistantCost:Number(d.assistant_cost||0), editorCost:Number(d.editor_cost||0), transportCost:Number(d.transport_cost||0), otherCost:Number(d.other_cost||0)
+      }));
+      return {
+        id:row.id, number:row.invoice_number || row.id,
+        client:{name:client.name || 'Client', phone:client.phone || '', email:client.email || '', occasion:row.occasion || '', startDate:row.start_date || '', endDate:row.end_date || '', venue:row.venue || '', area:row.area || '', venueColor:row.venue_color || '', dress:row.dress || '', theme:row.theme || ''},
+        package:{price:Number(row.package_price||0), discountType:row.discount_type || 'bdt', discount:Number(row.discount||0), total:Number(row.total||0), advance:Number(row.advance||0), due:Number(row.due||0), paymentMethod:row.payment_method || '', payments:(payments||[]).filter(x=>String(x.invoice_id)===String(row.id)).map(x=>({id:x.id,date:x.payment_date||'',amount:Number(x.amount||0),method:x.payment_method||'',reference:x.transaction_ref||'',note:x.note||''}))},
+        deliverables:(deliverables||[]).filter(x=>String(x.invoice_id)===String(row.id)).map(x=>x.deliverable).filter(Boolean),
+        days:invDays, showCostsOnInvoice:!!row.show_costs_on_invoice, notes:row.notes || '', signedBy:row.signed_by || '', signedTitle:row.signed_title || '', status:row.status || 'Draft', createdAt:row.source_created_at || String(row.created_at||'').slice(0,10)
+      };
+    }
+
+    async function bpSyncFromSupabase({silent=false}={}) {
+      if (!bpSupabase) return {ok:false, message:'Supabase client not ready.'};
+      try {
+        const tables=['business_settings','clients','invoices','invoice_payments','invoice_deliverables','invoice_days','team_members','team_payments','team_payment_records','delivery_records','freelance_jobs','freelance_payment_history','hired_payment_history','expenses','freelance_company_balances','google_calendar_events'];
+        const results=await Promise.all(tables.map(t=>bpDbTable(t)));
+        const data={}; tables.forEach((t,i)=>data[t]=results[i]);
+
+        // Branding: only fill missing local values from the remote business settings.
+        if(data.business_settings[0]) appState.branding=Object.assign({},data.business_settings[0],appState.branding||{});
+
+        const clients=new Map(data.clients.map(x=>[String(x.id),x]));
+        const remoteInvoices=data.invoices.map(x=>bpRemoteInvoice(x,clients,data.invoice_days,data.invoice_deliverables,data.invoice_payments));
+        appState.invoices=bpMergeById(appState.invoices,remoteInvoices,'id');
+
+        // Team members
+        appState.teamMembers=bpMergeById(appState.teamMembers,data.team_members.map(x=>({id:x.id,name:x.name,role:x.role||'',whatsapp:x.whatsapp||'',bkash:x.bkash||'',nagad:x.nagad||'',bank:x.bank||'',paymentPreference:x.payment_preference||'',active:x.active!==false})),'id');
+
+        // Team payments + their payment history.
+        const teamRecords=new Map();
+        for(const r of data.team_payment_records) { const k=String(r.team_payment_id); if(!teamRecords.has(k)) teamRecords.set(k,[]); teamRecords.get(k).push({id:r.id,date:r.payment_date||'',amount:Number(r.amount||0),method:r.payment_method||'',transactionId:r.transaction_ref||'',note:r.note||''}); }
+        const remoteTeam=data.team_payments.map(x=>({id:x.id,memberName:x.member_name||'',role:x.role||'',workDate:x.work_date||'',workType:x.work_type||'',clientName:x.client_name||'',agreedPay:Number(x.agreed_pay||0),note:x.note||'',invoiceId:x.invoice_id||'',dayId:x.day_id||'',venue:x.venue||'',area:x.area||'',payments:teamRecords.get(String(x.id))||[]}));
+        appState.teamPayments=bpMergeById(appState.teamPayments,remoteTeam,'id');
+
+        // Delivery records are keyed by invoice_id in the app.
+        const remoteDelivery={};
+        for(const x of data.delivery_records) remoteDelivery[x.invoice_id]={status:x.status||'Pending',driveLink:x.drive_link||'',deliveryDate:x.delivery_date||'',downloadDeadline:x.download_deadline||'',correctionDeadline:x.correction_deadline||'',correctionStatus:x.correction_status||'None',note:x.note||'',sentAt:x.sent_at||'',completedAt:x.completed_at||''};
+        appState.deliveryRecords=Object.assign({},remoteDelivery,appState.deliveryRecords||{});
+
+        // Freelance jobs + payment histories.
+        const fp=new Map(), hp=new Map();
+        for(const r of data.freelance_payment_history){const k=String(r.freelance_job_id);if(!fp.has(k))fp.set(k,[]);fp.get(k).push({id:r.id,date:r.payment_date||'',amount:Number(r.amount||0),method:r.payment_method||'',reference:r.transaction_ref||'',note:r.note||''});}
+        for(const r of data.hired_payment_history){const k=String(r.freelance_job_id);if(!hp.has(k))hp.set(k,[]);hp.get(k).push({id:r.id,date:r.payment_date||'',amount:Number(r.amount||0),method:r.payment_method||'',reference:r.transaction_ref||'',note:r.note||''});}
+        const remoteJobs=data.freelance_jobs.map(x=>({id:x.id,companyName:x.company_name||'',contactName:x.contact_name||'',phone:x.phone||'',workDate:x.work_date||'',startTime:String(x.start_time||'').slice(0,5),endTime:String(x.end_time||'').slice(0,5),overnight:!!x.overnight,workType:x.work_type||'',role:x.role||'',location:x.location||'',agreedAmount:Number(x.agreed_amount||0),receivedAmount:Number(x.received_amount||0),paymentDueDate:x.payment_due_date||'',status:x.status||'',paymentMethod:x.payment_method||'',transactionRef:x.transaction_ref||'',note:x.note||'',assignedPhotographer:x.assigned_photographer||'',hiredName:x.hired_name||'',hiredRole:x.hired_role||'',hiredPhone:x.hired_phone||'',hiredFee:Number(x.hired_fee||0),hiredPaidAmount:Number(x.hired_paid_amount||0),billableExtraLabel:x.billable_extra_label||'',billableExtra:Number(x.billable_extra||0),googleCalendarEventId:x.google_calendar_event_id||'',createdAt:x.source_created_at||x.created_at||'',updatedAt:x.source_updated_at||x.updated_at||'',paymentHistory:fp.get(String(x.id))||[],hiredPaymentHistory:hp.get(String(x.id))||[]}));
+        appState.freelanceJobs=bpMergeById(appState.freelanceJobs,remoteJobs,'id');
+
+        // Expenses and company balances.
+        appState.expenses=bpMergeById(appState.expenses,data.expenses.map(x=>({id:x.id,date:x.expense_date||'',category:x.category||'',description:x.description||'',amount:Number(x.amount||0)})),'id');
+        if(!appState.freelanceCompanyBalances) appState.freelanceCompanyBalances={};
+        for(const x of data.freelance_company_balances){const k=String(x.company_key||'').trim().toLowerCase(),m=String(x.balance_month||'').slice(0,7);if(k&&m){if(!appState.freelanceCompanyBalances[k])appState.freelanceCompanyBalances[k]={};if(appState.freelanceCompanyBalances[k][m]==null)appState.freelanceCompanyBalances[k][m]=Number(x.balance||0);}}
+
+        // Google mapping IDs are kept on their source objects where possible.
+        const maps=new Map(data.google_calendar_events.map(x=>[`${x.source_type}:${x.source_id}`,x.google_event_id]));
+        for(const inv of (appState.invoices||[])) for(let i=0;i<(inv.days||[]).length;i++){const d=inv.days[i];const eid=maps.get(`invoice_day:${d.dayId||d.id}`);if(eid){if(!Array.isArray(inv.googleCalendarEventIds))inv.googleCalendarEventIds=[];if(!inv.googleCalendarEventIds[i])inv.googleCalendarEventIds[i]=eid;}}
+        for(const j of (appState.freelanceJobs||[])){const eid=maps.get(`freelance_job:${j.id}`);if(eid&&!j.googleCalendarEventId)j.googleCalendarEventId=eid;}
+
+        persistData(); applyBrandingUI(); renderDashboard(); renderInvoicesList(); renderBookingsMaster(); renderTeamPayments(); renderDelivery(); renderFreelance(); renderOverallFinance?.(); renderDataSafety?.();
+        const stamp=new Date().toISOString();localStorage.setItem(BP_DB_SYNC_KEY,stamp);
+        if(!silent)showToast('Supabase data sync complete — local data preserved.');
+        return {ok:true,counts:Object.fromEntries(tables.map(t=>[t,data[t].length])),syncedAt:stamp};
+      } catch(e) {
+        console.error('Supabase database sync failed:',e);
+        if(!silent)showToast('Supabase database sync failed: '+(e.message||'Unknown error'));
+        return {ok:false,message:e.message||String(e)};
       }
     }
 
@@ -6545,6 +6647,7 @@ Thank you.
 
       if (data?.session?.user) {
         bpShowAuthenticatedUI(data.session.user);
+        setTimeout(()=>bpSyncFromSupabase({silent:true}), 150);
       } else {
         bpShowLoggedOutUI();
       }
